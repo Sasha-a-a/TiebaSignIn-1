@@ -166,8 +166,8 @@ def main() -> None:
     summary_lines.append("================================")
     logger.info("\n".join(summary_lines))
 
-    # 5. 推送签到结果到企业微信群机器人（可选，未配置 WECHAT_WEBHOOK_KEY 则自动跳过）
-    wechat_notify.send_markdown(_build_wechat_content(total, stats))
+       # 5. 正常运行不推送，仅 BDUSS 失效/致命异常时由下方异常处理推送
+
 
 
 def _build_wechat_content(total: int, stats: dict) -> str:
