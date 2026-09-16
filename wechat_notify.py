@@ -1,63 +1,54 @@
-"""企业微信群机器人推送
-
-通过环境变量 WECHAT_WEBHOOK_KEY 读取群机器人 Key，把签到结果推送到企业微信群。
+#!/usr/bin/env python3
+"""Server酱(方糖)微信推送 - 替换企业微信推送
+通过环境变量 SENDKEY 读取 Server酱 SendKey，把签到结果推送到个人微信。
 未配置该环境变量时，send_markdown 会直接返回 False，不影响主流程。
-
-企业微信群机器人文档:
-    https://developer.work.weixin.qq.com/document/path/91770
+Server酱文档: https://sct.ftqq.com/
 """
-
 import logging
 import os
-
 import requests
 
 logger = logging.getLogger(__name__)
 
-WEBHOOK_BASE = "https://qyapi.weixin.qq.com/cgi-bin/webhook/send"
-
-# 企业微信 markdown 消息 content 字段上限 4096 字节，这里留点余量
-MAX_CONTENT_BYTES = 4000
+SEND_BASE = "https://sctapi.ftqq.com"
 
 
-def get_webhook_key() -> str:
-    """从环境变量读取群机器人 Key（企业微信 Webhook Key）。"""
-    return os.environ.get("WECHAT_WEBHOOK_KEY", "").strip()
+def get_sendkey() -> str:
+    """从环境变量读取 Server酱 SendKey。"""
+    return os.environ.get("SENDKEY", "").strip()
 
 
 def send_markdown(content: str, key: str | None = None) -> bool:
-    """发送 markdown 消息到企业微信群。
+    """发送 markdown 消息到个人微信。
 
     Args:
-        content: markdown 文本（企业微信语法子集，支持 #、**加粗**、> 引用、- 列表等）。
-        key: 可选的 Webhook Key；若不传则从环境变量 WECHAT_WEBHOOK_KEY 读取。
+        content: markdown 文本。
+        key: 可选的 SendKey；若不传则从环境变量读取。
 
     Returns:
         是否发送成功。未配置 Key 或网络异常时返回 False。
     """
-    key = (key or "").strip() or get_webhook_key()
+    key = (key or "").strip() or get_sendkey()
     if not key:
-        logger.info("未配置 WECHAT_WEBHOOK_KEY，跳过企业微信推送")
+        logger.info("未配置 SENDKEY，跳过微信推送")
         return False
-
-    # 超长截断，避免企业微信接口报错（按字节截断并尽量不截断半个中文）
-    encoded = content.encode("utf-8")
-    if len(encoded) > MAX_CONTENT_BYTES:
-        content = encoded[:MAX_CONTENT_BYTES].decode("utf-8", "ignore")
-        logger.warning("推送内容超过长度限制，已截断")
-
-    url = f"{WEBHOOK_BASE}?key={key}"
-    payload = {"msgtype": "markdown", "markdown": {"content": content}}
-
+    # 第一行去掉 # 后作为标题，其余作为正文
+    lines = content.strip().split("\n", 1)
+    title = (lines[0].replace("#", "").strip())[:64] or "贴吧签到结果"
+    desp = lines[1].strip() if len(lines) > 1 else ""
+    payload = {"title": title}
+    if desp:
+        payload["desp"] = desp
+    url = f"{SEND_BASE}/{key}.send"
     try:
-        resp = requests.post(url, json=payload, timeout=10)
+        resp = requests.post(url, data=payload, timeout=10)
         resp.raise_for_status()
         data = resp.json()
-        if data.get("errcode", 0) != 0:
-            logger.error(f"企业微信推送失败: errcode={data.get('errcode')} errmsg={data.get('errmsg')}")
+        if data.get("code", -1) != 0:
+            logger.error(f"Server酱推送失败: code={data.get('code')} message={data.get('message')}")
             return False
-        logger.info("企业微信推送成功")
+        logger.info("Server酱推送成功")
         return True
     except Exception as e:
-        logger.error(f"企业微信推送异常: {e}")
+        logger.error(f"Server酱推送异常: {e}")
         return False
