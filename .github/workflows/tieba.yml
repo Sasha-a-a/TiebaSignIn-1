@@ -24,7 +24,7 @@ jobs:
       - name: Run sign-in
         env:
           BDUSS: ${{ secrets.BDUSS }}
-          WECHAT_WEBHOOK_KEY: ${{ secrets.WECHAT_WEBHOOK_KEY }}
+          SENDKEY: ${{ secrets.SENDKEY }}
         run: python run.py
 
   workflow-keepalive:
